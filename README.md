@@ -19,7 +19,59 @@ Expected local artifacts:
 - First-stage checkpoints: `lightning/precip_regression/.../*.ckpt`
 - Second-stage checkpoints: `lightning/precip_gan/.../*.ckpt`
 
-These large data and checkpoint artifacts are intentionally ignored by git. After cloning the repo and installing dependencies, you still need to place the H5 dataset and model checkpoints in the paths above before the training scripts or app can run.
+These large data and checkpoint artifacts are intentionally ignored by git.
+
+What this repository contains:
+- Source code for H5 dataset conversion, first-stage training, second-stage GAN fine-tuning, and the Streamlit demo.
+- Documentation and paper draft files under `docs/`.
+
+What this repository does not contain:
+- The full CIKM dataset text dumps.
+- The generated H5 dataset.
+- Trained Lightning checkpoints.
+- Training logs, TensorBoard runs, or local cache files.
+
+This means: cloning the repository and installing dependencies is enough to inspect the code, but not enough to run training or inference end to end. Before the scripts or app can run, you must place the dataset and checkpoints in the expected local paths.
+
+## Required local files before running
+Minimum files needed for each task:
+
+- To build the H5 dataset:
+  - `data/CIKM/train.txt`
+  - `data/CIKM/testA.txt`
+
+- To train the first stage:
+  - `data/CIKM/cikm_oversampled_v2.h5`
+
+- To train the second stage:
+  - `data/CIKM/cikm_oversampled_v2.h5`
+  - At least one first-stage checkpoint under `lightning/precip_regression/.../*.ckpt`
+
+- To run the Streamlit demo:
+  - `data/CIKM/cikm_oversampled_v2.h5`
+  - At least one checkpoint under either:
+    - `lightning/precip_regression/.../*.ckpt`
+    - `lightning/precip_gan/.../*.ckpt`
+
+Recommended directory layout:
+```text
+SmaAt-UNet/
+├─ app.py
+├─ build_cikm_h5.py
+├─ train_precip_lightning.py
+├─ train_gan.py
+├─ data/
+│  └─ CIKM/
+│     ├─ train.txt
+│     ├─ testA.txt
+│     └─ cikm_oversampled_v2.h5
+└─ lightning/
+   ├─ precip_regression/
+   │  └─ PhysFormerUNet/
+   │     └─ *.ckpt
+   └─ precip_gan/
+      └─ *.ckpt
+```
 
 ## Quick start
 Install dependencies:
@@ -53,6 +105,37 @@ python -m streamlit run app.py
 ```
 
 The app scans both `lightning/precip_regression` and `lightning/precip_gan` for available checkpoints and runs inference on the H5 test set.
+
+## Pre-run checklist
+Before starting the app, confirm:
+
+1. `data/CIKM/cikm_oversampled_v2.h5` exists.
+2. `lightning/precip_regression` or `lightning/precip_gan` contains at least one `.ckpt`.
+3. Your Python environment has `torch`, `lightning`, `h5py`, `streamlit`, `matplotlib`, and `numpy`.
+
+Useful checks:
+```shell
+python -c "import os; print(os.path.exists('data/CIKM/cikm_oversampled_v2.h5'))"
+python -c "import glob; print(glob.glob('lightning/precip_regression/**/*.ckpt', recursive=True))"
+python -c "import glob; print(glob.glob('lightning/precip_gan/**/*.ckpt', recursive=True))"
+```
+
+## Common failure cases
+`Dataset file not found: data/CIKM/cikm_oversampled_v2.h5`
+
+The H5 dataset has not been generated or is not in the expected path. Run `build_cikm_h5.py` first or move the file into `data/CIKM/`.
+
+`No checkpoint files were found under lightning/precip_regression or lightning/precip_gan`
+
+The app found no trained model. Train the first stage first, or copy an existing checkpoint into one of those folders.
+
+The app starts but shows no useful prediction choices
+
+This usually means the H5 file exists, but the checkpoint folders are empty.
+
+Training falls back to CPU
+
+This repo currently includes a compatibility fallback for machines where the installed PyTorch build does not support the local GPU architecture. Training still runs, but slower.
 
 **>>>IMPORTANT<<<**
 
