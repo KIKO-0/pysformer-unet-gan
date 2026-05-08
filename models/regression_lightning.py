@@ -17,7 +17,7 @@ class UNetBase(pl.LightningModule):
             "--model",
             type=str,
             default="UNet",
-            choices=["UNet", "UNetDS", "UNetAttention", "UNetDSAttention", "PersistenceModel"],
+            choices=["UNet", "UNetDS", "UNetAttention", "UNetDSAttention", "UNetDS_CoordAtt", "PhysFormerUNet", "PersistenceModel"],
         )
         parser.add_argument("--n_channels", type=int, default=12)
         parser.add_argument("--n_classes", type=int, default=1)
@@ -180,9 +180,9 @@ class PrecipRegressionBase(UNetBase):
             batch_size=self.hparams.batch_size,
             sampler=self.train_sampler,
             pin_memory=True,
-            # The following can/should be tweaked depending on the number of CPU cores
-            num_workers=1,
-            persistent_workers=True,
+            # Keep Windows-compatible defaults for restricted environments.
+            num_workers=0,
+            persistent_workers=False,
         )
         return train_loader
 
@@ -192,9 +192,9 @@ class PrecipRegressionBase(UNetBase):
             batch_size=self.hparams.batch_size,
             sampler=self.valid_sampler,
             pin_memory=True,
-            # The following can/should be tweaked depending on the number of CPU cores
-            num_workers=1,
-            persistent_workers=True,
+            # Keep Windows-compatible defaults for restricted environments.
+            num_workers=0,
+            persistent_workers=False,
         )
         return valid_loader
 

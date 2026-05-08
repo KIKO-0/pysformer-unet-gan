@@ -1,5 +1,7 @@
 .idea
 .vscode
+.venv
+.venv_run
 data
 runs
 lightning
@@ -8,3 +10,13 @@ plots
 .ruff_cache
 .mypy_cache
 __pycache__
+.pytest_cache
+.ipynb_checkpoints
+*.py[cod]
+*.log
+*.out
+*.err
+*.pid
+*.tmp
+CIKM2017_train.tar.gz
+mnist_test_seq.npy

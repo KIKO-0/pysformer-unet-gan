@@ -139,3 +139,88 @@ class CBAM(nn.Module):
         out = self.channel_att(x)
         out = self.spatial_att(out)
         return out
+
+
+class HSigmoid(nn.Module):
+    def forward(self, x):
+        return F.relu6(x + 3.0, inplace=True) / 6.0
+
+
+class HSwish(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.sigmoid = HSigmoid()
+
+    def forward(self, x):
+        return x * self.sigmoid(x)
+
+
+class CoordinateAttention(nn.Module):
+    def __init__(self, input_channels, reduction_ratio=16):
+        super().__init__()
+        reduced_channels = max(8, input_channels // reduction_ratio)
+        self.pool_h = nn.AdaptiveAvgPool2d((None, 1))
+        self.pool_w = nn.AdaptiveAvgPool2d((1, None))
+        self.conv1 = nn.Conv2d(input_channels, reduced_channels, kernel_size=1, stride=1, padding=0)
+        self.bn1 = nn.BatchNorm2d(reduced_channels)
+        self.act = HSwish()
+        self.conv_h = nn.Conv2d(reduced_channels, input_channels, kernel_size=1, stride=1, padding=0)
+        self.conv_w = nn.Conv2d(reduced_channels, input_channels, kernel_size=1, stride=1, padding=0)
+
+    def forward(self, x):
+        identity = x
+        n, c, h, w = x.size()
+        x_h = self.pool_h(x)
+        x_w = self.pool_w(x).permute(0, 1, 3, 2)
+
+        y = torch.cat([x_h, x_w], dim=2)
+        y = self.act(self.bn1(self.conv1(y)))
+
+        x_h, x_w = torch.split(y, [h, w], dim=2)
+        x_w = x_w.permute(0, 1, 3, 2)
+
+        a_h = torch.sigmoid(self.conv_h(x_h))
+        a_w = torch.sigmoid(self.conv_w(x_w))
+        return identity * a_h * a_w
+
+
+class TemporalFusionStem(nn.Module):
+    def __init__(self, seq_len, hidden_channels=8):
+        super().__init__()
+        self.temporal_conv = nn.Sequential(
+            nn.Conv3d(1, hidden_channels, kernel_size=(3, 3, 3), padding=(1, 1, 1), bias=False),
+            nn.BatchNorm3d(hidden_channels),
+            nn.GELU(),
+            nn.Conv3d(hidden_channels, hidden_channels, kernel_size=(3, 1, 1), padding=(1, 0, 0), bias=False),
+            nn.BatchNorm3d(hidden_channels),
+            nn.GELU(),
+        )
+        self.project = nn.Conv2d(hidden_channels, seq_len, kernel_size=1)
+
+    def forward(self, x):
+        temporal = x.unsqueeze(1)
+        fused = self.temporal_conv(temporal).mean(dim=2)
+        return x + self.project(fused)
+
+
+class SpatialTransformerBottleneck(nn.Module):
+    def __init__(self, channels, num_heads=4, num_layers=1, dropout=0.1):
+        super().__init__()
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=channels,
+            nhead=num_heads,
+            dim_feedforward=channels * 4,
+            dropout=dropout,
+            activation="gelu",
+            batch_first=True,
+            norm_first=True,
+        )
+        self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=num_layers)
+        self.norm = nn.LayerNorm(channels)
+
+    def forward(self, x):
+        b, c, h, w = x.shape
+        tokens = x.flatten(2).transpose(1, 2)
+        tokens = self.encoder(tokens)
+        tokens = self.norm(tokens)
+        return tokens.transpose(1, 2).reshape(b, c, h, w)

@@ -7,6 +7,9 @@ def get_model_class(model_file) -> tuple[type[pl.LightningModule], str]:
     if "UNetAttention" in model_file:
         model_name = "UNet Attention"
         model = unet_regr.UNetAttention
+    elif "PhysFormerUNet" in model_file:
+        model_name = "PhysFormer-UNet"
+        model = unet_regr.PhysFormerUNet
     elif "UNetDSAttention4kpl" in model_file:
         model_name = "UNetDS Attention with 4kpl"
         model = unet_regr.UNetDSAttention
@@ -19,6 +22,9 @@ def get_model_class(model_file) -> tuple[type[pl.LightningModule], str]:
     elif "UNetDSAttention" in model_file:
         model_name = "SmaAt-UNet"
         model = unet_regr.UNetDSAttention
+    elif "UNetDS_CoordAtt" in model_file:
+        model_name = "PhysFormer-UNet"
+        model = unet_regr.PhysFormerUNet
     elif "UNetDS" in model_file:
         model_name = "UNetDS"
         model = unet_regr.UNetDS

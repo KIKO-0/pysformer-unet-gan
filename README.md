@@ -5,6 +5,55 @@ Code for the Paper "SmaAt-UNet: Precipitation Nowcasting using a Small Attention
 
 The proposed SmaAt-UNet can be found in the model-folder under [SmaAt_UNet](models/SmaAt_UNet.py).
 
+## Current workflow in this repo
+This checkout has been adapted to a CIKM radar nowcasting workflow based on H5 data and Lightning checkpoints.
+
+Main entrypoints:
+- `build_cikm_h5.py`: convert raw CIKM text files into the H5 format used by training and inference.
+- `train_precip_lightning.py`: first-stage precipitation training. The current default path trains `PhysFormerUNet`.
+- `train_gan.py`: second-stage GAN fine-tuning on top of a first-stage checkpoint.
+- `app.py`: Streamlit demo that loads a checkpoint and runs autoregressive inference on the H5 test split.
+
+Expected local artifacts:
+- Dataset H5: `data/CIKM/cikm_oversampled_v2.h5`
+- First-stage checkpoints: `lightning/precip_regression/.../*.ckpt`
+- Second-stage checkpoints: `lightning/precip_gan/.../*.ckpt`
+
+These large data and checkpoint artifacts are intentionally ignored by git. After cloning the repo and installing dependencies, you still need to place the H5 dataset and model checkpoints in the paths above before the training scripts or app can run.
+
+## Quick start
+Install dependencies:
+```shell
+uv sync --frozen
+```
+
+Or use the generated requirements file:
+```shell
+python -m pip install -r requirements.txt
+```
+
+Build the CIKM H5 dataset:
+```shell
+python build_cikm_h5.py --train_txt data/CIKM/train.txt --test_txt data/CIKM/testA.txt --out_h5 data/CIKM/cikm_oversampled_v2.h5
+```
+
+Train the first stage:
+```shell
+python train_precip_lightning.py --dataset_folder data/CIKM/cikm_oversampled_v2.h5
+```
+
+Train the second stage:
+```shell
+python train_gan.py --dataset_folder data/CIKM/cikm_oversampled_v2.h5
+```
+
+Run the Streamlit demo:
+```shell
+python -m streamlit run app.py
+```
+
+The app scans both `lightning/precip_regression` and `lightning/precip_gan` for available checkpoints and runs inference on the H5 test set.
+
 **>>>IMPORTANT<<<**
 
 The original Code from the paper can be found in this branch: https://github.com/HansBambel/SmaAt-UNet/tree/snapshot-paper
